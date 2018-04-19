@@ -24,7 +24,9 @@ import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.math.NumberUtils;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.StaplerRequest;
+import jenkins.tasks.SimpleBuildStep;
 
+import javax.annotation.Nonnull;
 import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
@@ -36,7 +38,7 @@ import java.util.Locale;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-public class RunInCloudBuilder extends AbstractBuilder {
+public class RunInCloudBuilder extends AbstractBuilder implements SimpleBuildStep {
 
     transient private static final Logger LOGGER = Logger.getLogger(RunInCloudBuilder.class.getSimpleName());
 
@@ -324,6 +326,11 @@ public class RunInCloudBuilder extends AbstractBuilder {
                 StringUtils.isNotBlank(waitForResultsBlock.getResultsPath()) ? waitForResultsBlock.getResultsPath()
                         : build.getWorkspace().getRemote() :
                 null;
+    }
+
+    @Override
+    public void perform(@Nonnull Run<?, ?> run, @Nonnull FilePath workspace, @Nonnull Launcher launcher, @Nonnull TaskListener listener) throws InterruptedException, IOException {
+        // pass
     }
 
     @Override

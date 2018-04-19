@@ -3,7 +3,9 @@
     <parent>
         <groupId>org.jenkins-ci.plugins</groupId>
         <artifactId>plugin</artifactId>
-        <version>1.427</version>
+        <!-- Baseline Jenkins version you use to build and test the plugin. Users must have this version or newer to run. -->
+        <version>1.580.1</version>
+        <relativePath />
     </parent>
 
     <groupId>testdroid</groupId>
@@ -146,11 +148,10 @@
         <dependency>
             <groupId>org.jenkins-ci.main</groupId>
             <artifactId>cli</artifactId>
-            <version>1.427</version>
+            <version>1.580.1</version>
             <type>pom</type>
             <optional>false</optional>
         </dependency>
-
         <dependency>
             <groupId>com.testdroid</groupId>
             <artifactId>testdroid-api</artifactId>
