@@ -9,7 +9,7 @@ import com.testdroid.api.model.APITestRun;
 import com.testdroid.jenkins.Messages;
 import com.testdroid.jenkins.TestdroidCloudSettings;
 import com.testdroid.jenkins.utils.TestdroidApiUtil;
-import hudson.model.BuildListener;
+import hudson.model.TaskListener;
 import hudson.remoting.Callable;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
@@ -39,7 +39,7 @@ public class MachineIndependentResultsDownloader extends MachineIndependentTask
 
     private boolean downloadScreenshots;
 
-    private BuildListener listener;
+    private TaskListener listener;
 
     private long projectId;
 
@@ -48,7 +48,7 @@ public class MachineIndependentResultsDownloader extends MachineIndependentTask
     private long testRunId;
 
     public MachineIndependentResultsDownloader(
-            TestdroidCloudSettings.DescriptorImpl descriptor, BuildListener listener, long projectId, long testRunId,
+            TestdroidCloudSettings.DescriptorImpl descriptor, TaskListener listener, long projectId, long testRunId,
             String resultsPath, boolean downloadScreenshots) {
         super(descriptor);
 

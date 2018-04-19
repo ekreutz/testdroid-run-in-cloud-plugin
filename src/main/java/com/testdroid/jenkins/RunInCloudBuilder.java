@@ -119,8 +119,9 @@ public class RunInCloudBuilder extends AbstractBuilder implements SimpleBuildSte
         this.notificationEmail = notificationEmail;
         this.notificationEmailType = notificationEmailType;
         this.failBuildIfThisStepFailed = failBuildIfThisStepFailed;
-        this.waitForResultsBlock = waitForResultsBlock;
         this.testTimeout = testTimeout;
+
+        this.waitForResultsBlock = new WaitForResultsBlock()
     }
 
     public String getTestRunName() {
@@ -297,7 +298,7 @@ public class RunInCloudBuilder extends AbstractBuilder implements SimpleBuildSte
         return StringUtils.isNotBlank(dataPath);
     }
 
-    private boolean verifyParameters(BuildListener listener) {
+    private boolean verifyParameters(TaskListener listener) {
         boolean result = true;
         if (StringUtils.isBlank(appPath)) {
             listener.getLogger().println(Messages.ERROR_APP_PATH() + "\n");
@@ -321,31 +322,44 @@ public class RunInCloudBuilder extends AbstractBuilder implements SimpleBuildSte
                 null;
     }
 
-    private String evaluateResultsPath(AbstractBuild<?, ?> build) {
+    private String evaluateResultsPath(FilePath workspace) {
         return isWaitForResults() ?
                 StringUtils.isNotBlank(waitForResultsBlock.getResultsPath()) ? waitForResultsBlock.getResultsPath()
-                        : build.getWorkspace().getRemote() :
+                        : workspace.getRemote() :
                 null;
     }
 
     @Override
     public void perform(@Nonnull Run<?, ?> run, @Nonnull FilePath workspace, @Nonnull Launcher launcher, @Nonnull TaskListener listener) throws InterruptedException, IOException {
-        // pass
-    }
-
-    @Override
-    public boolean perform(AbstractBuild<?, ?> build, Launcher launcher, BuildListener listener) {
         listener.getLogger().println(Messages.RUN_TEST_IN_CLOUD_STARTED());
-        boolean result = runTest(build, launcher, listener);
+
+        boolean result = runTest(run, workspace, launcher, listener);
         if (result) {
             listener.getLogger().println(Messages.RUN_TEST_IN_CLOUD_SUCCEEDED());
         } else {
             listener.getLogger().println(Messages.RUN_TEST_IN_CLOUD_FAILED());
         }
+
+        if (!result && failBuildIfThisStepFailed) {
+            throw new IOException();
+        }
+    }
+
+    @Override
+    public boolean perform(AbstractBuild<?, ?> build, Launcher launcher, BuildListener listener) {
+        listener.getLogger().println(Messages.RUN_TEST_IN_CLOUD_STARTED());
+
+        boolean result = runTest(build, build.getWorkspace(), launcher, listener);
+        if (result) {
+            listener.getLogger().println(Messages.RUN_TEST_IN_CLOUD_SUCCEEDED());
+        } else {
+            listener.getLogger().println(Messages.RUN_TEST_IN_CLOUD_FAILED());
+        }
+
         return result || !failBuildIfThisStepFailed;
     }
 
-    private boolean runTest(AbstractBuild<?, ?> build, Launcher launcher, final BuildListener listener) {
+    private boolean runTest(Run<?, ?> build, FilePath workspace, Launcher launcher, final TaskListener listener) {
         // rewrite paths to take variables into consideration
         String appPathFinal = applyMacro(build, listener, appPath);
         String testPathFinal = applyMacro(build, listener, testPath);
@@ -396,6 +410,7 @@ public class RunInCloudBuilder extends AbstractBuilder implements SimpleBuildSte
                 // 10 minutes for free users
                 config.setTimeout(600L);
             }
+
             setLimitations(build, listener, config);
             deleteExistingParameters(config);
             createProvidedParameters(config);
@@ -404,7 +419,7 @@ public class RunInCloudBuilder extends AbstractBuilder implements SimpleBuildSte
             printTestJob(project, config, listener);
             getDescriptor().save();
 
-            final FilePath appFile = new FilePath(launcher.getChannel(), getAbsolutePath(build, appPathFinal));
+            final FilePath appFile = new FilePath(launcher.getChannel(), getAbsolutePath(workspace, appPathFinal));
 
             listener.getLogger().println(String.format(Messages.UPLOADING_NEW_APPLICATION_S(), appPathFinal));
 
@@ -417,7 +432,7 @@ public class RunInCloudBuilder extends AbstractBuilder implements SimpleBuildSte
             }
 
             if (isFullTest()) {
-                FilePath testFile = new FilePath(launcher.getChannel(), getAbsolutePath(build, testPathFinal));
+                FilePath testFile = new FilePath(launcher.getChannel(), getAbsolutePath(workspace, testPathFinal));
 
                 listener.getLogger().println(String.format(Messages.UPLOADING_NEW_INSTRUMENTATION_S(),
                         testPathFinal));
@@ -430,7 +445,7 @@ public class RunInCloudBuilder extends AbstractBuilder implements SimpleBuildSte
             }
 
             if (isDataFile()) {
-                FilePath dataFile = new FilePath(launcher.getChannel(), getAbsolutePath(build, dataPathFinal));
+                FilePath dataFile = new FilePath(launcher.getChannel(), getAbsolutePath(workspace, dataPathFinal));
                 listener.getLogger().println(String.format(Messages.UPLOADING_DATA_FILE_S(), dataPathFinal));
                 dataFileId = dataFile.act(new MachineIndependentFileUploader(descriptor, project.getId(),
                         MachineIndependentFileUploader.FILE_TYPE.DATA, listener));
@@ -461,7 +476,7 @@ public class RunInCloudBuilder extends AbstractBuilder implements SimpleBuildSte
             plugin.getSemaphore().release();
             releaseDone = true;
 
-            return waitForResults(project, testRun, build, launcher, listener);
+            return waitForResults(project, testRun, workspace, launcher, listener);
 
         } catch (APIException e) {
             listener.getLogger().println(String.format("%s: %s", Messages.ERROR_API(), e.getMessage()));
@@ -485,8 +500,8 @@ public class RunInCloudBuilder extends AbstractBuilder implements SimpleBuildSte
     }
 
     private boolean waitForResults(
-            final APIProject project, final APITestRun testRun, AbstractBuild<?, ?> build, Launcher launcher,
-            BuildListener listener) {
+            final APIProject project, final APITestRun testRun, FilePath workspace, Launcher launcher,
+            TaskListener listener) {
         boolean isDownloadOk = true;
         if (isWaitForResults()) {
             TestRunFinishCheckScheduler scheduler = TestRunFinishCheckSchedulerFactory.createTestRunFinishScheduler
@@ -504,7 +519,7 @@ public class RunInCloudBuilder extends AbstractBuilder implements SimpleBuildSte
                     if (testRun.getState() == APITestRun.State.FINISHED) {
                         isDownloadOk = launcher.getChannel().call(
                                 new MachineIndependentResultsDownloader(TestdroidCloudSettings.descriptor(), listener,
-                                        project.getId(), testRun.getId(), evaluateResultsPath(build),
+                                        project.getId(), testRun.getId(), evaluateResultsPath(workspace),
                                         waitForResultsBlock.isDownloadScreenshots()));
 
                         if (!isDownloadOk) {
@@ -546,7 +561,7 @@ public class RunInCloudBuilder extends AbstractBuilder implements SimpleBuildSte
         return isDownloadOk;
     }
 
-    private void setLimitations(AbstractBuild<?, ?> build, final BuildListener listener, APITestRunConfig config) {
+    private void setLimitations(Run<?, ?> build, final TaskListener listener, APITestRunConfig config) {
         if (StringUtils.isNotBlank(testCasesValue)) {
             config.setLimitationType(APITestRunConfig.LimitationType.valueOf(testCasesSelect));
             config.setLimitationValue(applyMacro(build, listener, testCasesValue));
@@ -578,7 +593,7 @@ public class RunInCloudBuilder extends AbstractBuilder implements SimpleBuildSte
         }
     }
 
-    private void printTestJob(APIProject project, APITestRunConfig config, BuildListener listener) {
+    private void printTestJob(APIProject project, APITestRunConfig config, TaskListener listener) {
         listener.getLogger().println(Messages.TEST_RUN_CONFIGURATION());
         listener.getLogger().println(String.format("%s: %s", Messages.PROJECT(), project.getName()));
         listener.getLogger().println(String.format("%s: %s", Messages.LOCALE(), config.getDeviceLanguageCode()));
@@ -588,7 +603,7 @@ public class RunInCloudBuilder extends AbstractBuilder implements SimpleBuildSte
         listener.getLogger().println(String.format("%s: %s", Messages.TIMEOUT(), config.getTimeout()));
     }
 
-    private String getAbsolutePath(AbstractBuild<?, ?> build, String path) throws IOException, InterruptedException {
+    private String getAbsolutePath(FilePath workspace, String path) throws IOException, InterruptedException {
         if (StringUtils.isBlank(path)) {
             return "";
         }
@@ -596,7 +611,7 @@ public class RunInCloudBuilder extends AbstractBuilder implements SimpleBuildSte
         if (trimmed.startsWith(File.separator)) { // absolute
             return trimmed;
         } else {
-            URI workspaceURI = build.getWorkspace().toURI();
+            URI workspaceURI = workspace.toURI();
             return workspaceURI.getPath() + trimmed;
         }
     }

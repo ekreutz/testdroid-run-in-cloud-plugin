@@ -7,6 +7,7 @@ import com.testdroid.jenkins.TestdroidCloudSettings;
 import com.testdroid.jenkins.utils.TestdroidApiUtil;
 import hudson.FilePath;
 import hudson.model.BuildListener;
+import hudson.model.TaskListener;
 import hudson.remoting.VirtualChannel;
 import org.jenkinsci.remoting.RoleChecker;
 
@@ -30,7 +31,7 @@ public class MachineIndependentFileUploader extends MachineIndependentTask imple
 
     private FILE_TYPE fileType;
 
-    private BuildListener listener;
+    private TaskListener listener;
 
     private long projectId;
 
@@ -42,7 +43,7 @@ public class MachineIndependentFileUploader extends MachineIndependentTask imple
 
     public MachineIndependentFileUploader(
             TestdroidCloudSettings.DescriptorImpl descriptor, long projectId, FILE_TYPE fileType,
-            BuildListener listener) {
+            TaskListener listener) {
         super(descriptor);
 
         this.projectId = projectId;
