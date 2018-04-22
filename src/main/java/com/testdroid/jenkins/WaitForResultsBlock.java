@@ -1,18 +1,65 @@
 package com.testdroid.jenkins;
 
-public static class WaitForResultsBlock {
+import com.testdroid.api.APIDeviceGroupQueryBuilder;
+import com.testdroid.api.APIException;
+import com.testdroid.api.APIQueryBuilder;
+import com.testdroid.api.model.*;
+import com.testdroid.api.model.APITestRunConfig.Scheduler;
+import com.testdroid.jenkins.model.TestRunStateCheckMethod;
+import com.testdroid.jenkins.remotesupport.MachineIndependentFileUploader;
+import com.testdroid.jenkins.remotesupport.MachineIndependentResultsDownloader;
+import com.testdroid.jenkins.scheduler.TestRunFinishCheckScheduler;
+import com.testdroid.jenkins.scheduler.TestRunFinishCheckSchedulerFactory;
+import com.testdroid.jenkins.utils.AndroidLocale;
+import com.testdroid.jenkins.utils.EmailHelper;
+import hudson.Extension;
+import hudson.FilePath;
+import hudson.Launcher;
+import hudson.model.*;
+import hudson.tasks.BuildStepDescriptor;
+import hudson.tasks.Builder;
+import hudson.util.ListBoxModel;
+import net.sf.json.JSONObject;
+import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang.math.NumberUtils;
+import org.kohsuke.stapler.DataBoundConstructor;
+import org.kohsuke.stapler.StaplerRequest;
+import jenkins.tasks.SimpleBuildStep;
+import jenkins.model.Jenkins;
 
-    private boolean downloadScreenshots;
+import javax.annotation.Nonnull;
+import java.io.File;
+import java.io.IOException;
+import java.io.Serializable;
+import java.net.URI;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+import java.util.Locale;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
-    private boolean forceFinishAfterBreak;
+public class WaitForResultsBlock implements Describable<WaitForResultsBlock> {
 
-    private String hookURL = "";
+    /**
+     * @see hudson.model.Describable#getDescriptor()
+     */
+    @SuppressWarnings("unchecked")
+    public Descriptor<WaitForResultsBlock> getDescriptor() {
+        return Jenkins.getActiveInstance().getDescriptorOrDie(getClass());
+    }
 
-    private String resultsPath = "";
+    boolean downloadScreenshots;
 
-    private TestRunStateCheckMethod testRunStateCheckMethod;
+    boolean forceFinishAfterBreak;
 
-    private Integer waitForResultsTimeout;
+    String hookURL = "";
+
+    String resultsPath = "";
+
+    TestRunStateCheckMethod testRunStateCheckMethod;
+
+    Integer waitForResultsTimeout;
 
     @DataBoundConstructor
     public WaitForResultsBlock(String testRunStateCheckMethod, String hookURL, String waitForResultsTimeout, String resultsPath, boolean downloadScreenshots, boolean forceFinishAfterBreak) {
@@ -79,14 +126,9 @@ public static class WaitForResultsBlock {
     }
 
     @Extension
-    public static final class DescriptorImpl extends AbstractStepDescriptorImpl {
+    public static final class DescriptorImpl extends Descriptor<WaitForResultsBlock> {
         public DescriptorImpl() {
             super(WaitForResultsBlock.class);
-        }
-
-        @Override
-        public String getFunctionName() {
-            return "waitForResults";
         }
 
         @Override
