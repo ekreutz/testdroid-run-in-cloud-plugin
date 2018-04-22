@@ -52,6 +52,8 @@ import java.util.logging.Logger;
 
 public class PipelineCloudStep extends AbstractStepImpl {
 
+    transient private static final Logger LOGGER = Logger.getLogger(PipelineCloudStep.class.getSimpleName());
+
     private String appPath;
     private String deviceGroupId;
     private String dataPath;
@@ -68,10 +70,18 @@ public class PipelineCloudStep extends AbstractStepImpl {
     private String testCasesValue;
     private String testRunName;
     private String testRunner;
-    private WaitForResultsBlock waitForResultsBlock;
     private String withAnnotation;
     private String withoutAnnotation;
     private String testTimeout;
+
+    // these variables are used to create a WaitForResultsBlock
+    private boolean waitForResults;
+    private String testRunStateCheckMethod; // API_CALL, HOOK_URL,
+    private String hookURL;
+    private String waitForResultsTimeout;
+    private String resultsPath;
+    private boolean downloadScreenshots;
+    private boolean forceFinishAfterBreak;
 
     // mandatory parameters for the Pipeline plugin
     @DataBoundConstructor
@@ -112,6 +122,7 @@ public class PipelineCloudStep extends AbstractStepImpl {
 
     @DataBoundSetter
     public void setWithoutAnnotation(String withoutAnnotation) {
+        LOGGER.log(Level.INFO, "Annotionation testtst");
         this.withoutAnnotation = withoutAnnotation;
     }
 
@@ -156,13 +167,43 @@ public class PipelineCloudStep extends AbstractStepImpl {
     }
 
     @DataBoundSetter
-    public void setWaitForResultsBlock(WaitForResultsBlock waitForResultsBlock) {
-        this.waitForResultsBlock = waitForResultsBlock;
+    public void setFailBuildIfThisStepFailed(boolean failBuildIfThisStepFailed) {
+        this.failBuildIfThisStepFailed = failBuildIfThisStepFailed;
     }
 
     @DataBoundSetter
-    public void setFailBuildIfThisStepFailed(boolean failBuildIfThisStepFailed) {
-        this.failBuildIfThisStepFailed = failBuildIfThisStepFailed;
+    public void setWaitForResults(boolean waitForResults) {
+        this.waitForResults = waitForResults;
+    }
+
+    @DataBoundSetter
+    public void setTestRunStateCheckMethod(String testRunStateCheckMethod) {
+        this.testRunStateCheckMethod = testRunStateCheckMethod;
+    }
+
+    @DataBoundSetter
+    public void setHookURL(String hookURL) {
+        this.hookURL = hookURL;
+    }
+
+    @DataBoundSetter
+    public void setWaitForResultsTimeout(String waitForResultsTimeout) {
+        this.waitForResultsTimeout = waitForResultsTimeout;
+    }
+
+    @DataBoundSetter
+    public void setResultsPath(String resultsPath) {
+        this.resultsPath = resultsPath;
+    }
+
+    @DataBoundSetter
+    public void setDownloadScreenshots(boolean downloadScreenshots) {
+        this.downloadScreenshots = downloadScreenshots;
+    }
+
+    @DataBoundSetter
+    public void setForceFinishAfterBreak(boolean forceFinishAfterBreak) {
+        this.forceFinishAfterBreak = forceFinishAfterBreak;
     }
 
 
@@ -240,16 +281,40 @@ public class PipelineCloudStep extends AbstractStepImpl {
         return notificationEmailType;
     }
 
-    public WaitForResultsBlock getWaitForResultsBlock() {
-        return waitForResultsBlock;
-    }
-
     public boolean isFailBuildIfThisStepFailed() {
         return failBuildIfThisStepFailed;
     }
 
     public String getTestTimeout() {
         return testTimeout;
+    }
+
+    public boolean isWaitForResults() {
+        return waitForResults;
+    }
+
+    public String getTestRunStateCheckMethod() {
+        return testRunStateCheckMethod;
+    }
+
+    public String getHookURL() {
+        return hookURL;
+    }
+
+    public String getWaitForResultsTimeout() {
+        return waitForResultsTimeout;
+    }
+
+    public String getResultsPath() {
+        return resultsPath;
+    }
+
+    public boolean isDownloadScreenshots() {
+        return downloadScreenshots;
+    }
+
+    public boolean isForceFinishAfterBreak() {
+        return forceFinishAfterBreak;
     }
 
     @Extension
@@ -291,6 +356,18 @@ public class PipelineCloudStep extends AbstractStepImpl {
 
         @Override
         protected Void run() throws Exception {
+            WaitForResultsBlock waitForResultsBlock = null;
+            if (step.isWaitForResults()) {
+                waitForResultsBlock = new WaitForResultsBlock(
+                        step.getTestRunStateCheckMethod(),
+                        step.getHookURL(),
+                        step.getWaitForResultsTimeout(),
+                        step.getResultsPath(),
+                        step.isDownloadScreenshots(),
+                        step.isForceFinishAfterBreak()
+                );
+            }
+
             RunInCloudBuilder builder = new RunInCloudBuilder(
                     step.getProjectId(),
                     step.getAppPath(),
@@ -310,7 +387,7 @@ public class PipelineCloudStep extends AbstractStepImpl {
                     step.getTestCasesValue(),
                     step.getNotificationEmailType(),
                     step.isFailBuildIfThisStepFailed(),
-                    step.getWaitForResultsBlock(),
+                    waitForResultsBlock,
                     step.getTestTimeout()
             );
 
