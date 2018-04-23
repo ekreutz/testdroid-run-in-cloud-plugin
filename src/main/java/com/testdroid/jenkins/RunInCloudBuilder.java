@@ -320,17 +320,37 @@ public class RunInCloudBuilder extends AbstractBuilder {
     }
 
     private String evaluateResultsPath(FilePath workspace) {
-        return isWaitForResults() ?
-                StringUtils.isNotBlank(waitForResultsBlock.getResultsPath()) ? waitForResultsBlock.getResultsPath()
-                        : workspace.getRemote() :
-                null;
+        if (isWaitForResults()) {
+            String resultsPath = waitForResultsBlock.getResultsPath();
+            if (StringUtils.isNotBlank(resultsPath)) {
+                try {
+                    return getAbsolutePath(workspace, resultsPath);
+                } catch (Exception exception) {
+                    LOGGER.log(Level.WARNING, "Couldn't get absolute path for results. Using workspace...");
+                }
+            }
+
+            return workspace.getRemote();
+        }
+
+        return null;
     }
 
+    /**
+     * Perform build step, as required by AbstractBuilder
+     */
     @Override
     public boolean perform(AbstractBuild<?, ?> build, Launcher launcher, BuildListener listener) {
+        return completeRun(build, build.getWorkspace(), launcher, listener);
+    }
+
+    /**
+     * Wrapper around runTest to be used elsewhere, and sensibly log steps of the build procedure
+     */
+    public boolean completeRun(Run<?, ?> build, FilePath workspace, Launcher launcher, final TaskListener listener) {
         listener.getLogger().println(Messages.RUN_TEST_IN_CLOUD_STARTED());
 
-        boolean result = runTest(build, build.getWorkspace(), launcher, listener);
+        boolean result = runTest(build, workspace, launcher, listener);
         if (result) {
             listener.getLogger().println(Messages.RUN_TEST_IN_CLOUD_SUCCEEDED());
         } else {
@@ -340,7 +360,10 @@ public class RunInCloudBuilder extends AbstractBuilder {
         return result || !failBuildIfThisStepFailed;
     }
 
-    public boolean runTest(Run<?, ?> build, FilePath workspace, Launcher launcher, final TaskListener listener) {
+    /**
+     * Actually run tests against the Bitbar Cloud, and perhaps wait for results
+     */
+    private boolean runTest(Run<?, ?> build, FilePath workspace, Launcher launcher, final TaskListener listener) {
         // rewrite paths to take variables into consideration
         String appPathFinal = applyMacro(build, listener, appPath);
         String testPathFinal = applyMacro(build, listener, testPath);

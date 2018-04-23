@@ -47,7 +47,19 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
- * Builder class for the Pipeline plugin functionality
+ * Pipeline build step for Bitbar Cloud's Jenkins plugin.
+ *
+ * Can be invoked from pipeline like eg:
+ * ...
+ * steps {
+ *     runInCloud(
+ *         projectId: "144314736",
+ *         deviceGroupId: "36085",
+ *         appPath: "application.ipa",
+ *         testPath: "tests.zip"
+ *     )
+ * }
+ * ...
  */
 
 public class PipelineCloudStep extends AbstractStepImpl {
@@ -83,18 +95,23 @@ public class PipelineCloudStep extends AbstractStepImpl {
     private boolean downloadScreenshots;
     private boolean forceFinishAfterBreak;
 
-    // mandatory parameters for the Pipeline plugin
+    /**
+     * Constructor; defined the mandatory parameters to be passed in Pipeline.
+     *
+     * @param projectId: Bitbar Cloud project Id
+     * @param deviceGroupId: Bitbar Cloud device group Id
+     * @param appPath: local path of app (.ipa, .apk) to be uploaded
+     */
     @DataBoundConstructor
-    public PipelineCloudStep(String projectId, String deviceGroupId, String appPath, String testPath) {
+    public PipelineCloudStep(String projectId, String deviceGroupId, String appPath) {
         this.projectId = projectId;
         this.appPath = appPath;
         this.deviceGroupId = deviceGroupId;
-        this.testPath = testPath;
     }
 
     // optional params for the plugin
     // defined in DataBoundSetters
-
+    
     @DataBoundSetter
     public void setTestRunName(String testRunName) {
         this.testRunName = testRunName;
@@ -103,6 +120,11 @@ public class PipelineCloudStep extends AbstractStepImpl {
     @DataBoundSetter
     public void setTestRunner(String testRunner) {
         this.testRunner = testRunner;
+    }
+
+    @DataBoundSetter
+    public void setTestPath(String testPath) {
+        this.testPath = testPath;
     }
 
     @DataBoundSetter
@@ -122,7 +144,6 @@ public class PipelineCloudStep extends AbstractStepImpl {
 
     @DataBoundSetter
     public void setWithoutAnnotation(String withoutAnnotation) {
-        LOGGER.log(Level.INFO, "Annotionation testtst");
         this.withoutAnnotation = withoutAnnotation;
     }
 
@@ -391,7 +412,10 @@ public class PipelineCloudStep extends AbstractStepImpl {
                     step.getTestTimeout()
             );
 
-            builder.runTest(run, workspace, launcher, listener);
+            if(!builder.completeRun(run, workspace, launcher, listener)) {
+                throw new Exception("runInTests Jenkins run failed!");
+            }
+
             return null;
         }
     }
