@@ -1,22 +1,38 @@
 package com.testdroid.jenkins;
 
+import com.testdroid.api.APIDeviceGroupQueryBuilder;
+import com.testdroid.api.APIException;
+import com.testdroid.api.APIQueryBuilder;
 import com.testdroid.api.model.*;
 import com.testdroid.api.model.APITestRunConfig.Scheduler;
+import com.testdroid.jenkins.model.TestRunStateCheckMethod;
+import com.testdroid.jenkins.remotesupport.MachineIndependentFileUploader;
+import com.testdroid.jenkins.remotesupport.MachineIndependentResultsDownloader;
+import com.testdroid.jenkins.scheduler.TestRunFinishCheckScheduler;
+import com.testdroid.jenkins.scheduler.TestRunFinishCheckSchedulerFactory;
+import com.testdroid.jenkins.utils.AndroidLocale;
+import com.testdroid.jenkins.utils.EmailHelper;
+import com.testdroid.jenkins.utils.TestdroidApiUtil;
 import hudson.Extension;
 import hudson.FilePath;
 import hudson.Launcher;
 import hudson.model.*;
+import java.util.List;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
 import org.jenkinsci.plugins.workflow.steps.AbstractStepDescriptorImpl;
 import org.jenkinsci.plugins.workflow.steps.AbstractStepImpl;
 import com.google.inject.Inject;
+import hudson.util.ListBoxModel;
+import org.kohsuke.stapler.StaplerRequest;
+import net.sf.json.JSONObject;
 
 import org.jenkinsci.plugins.workflow.steps.AbstractSynchronousNonBlockingStepExecution;
 import org.jenkinsci.plugins.workflow.steps.StepContextParameter;
 
 import java.util.Locale;
 import java.util.logging.Logger;
+import java.util.logging.Level;
 
 /**
  * Pipeline build step for Bitbar Cloud's Jenkins plugin.
@@ -212,59 +228,59 @@ public class PipelineCloudStep extends AbstractStepImpl {
     }
 
 
-    private String getTestRunName() {
+    public String getTestRunName() {
         return testRunName;
     }
 
-    private String getAppPath() {
+    public String getAppPath() {
         return appPath;
     }
 
-    private String getTestPath() {
+    public String getTestPath() {
         return testPath;
     }
 
-    private String getProjectId() {
+    public String getProjectId() {
         return projectId;
     }
 
-    private String getDeviceGroupId() {
+    public String getDeviceGroupId() {
         return deviceGroupId;
     }
 
-    private String getTestRunner() {
+    public String getTestRunner() {
         return testRunner;
     }
 
-    private String getScreenshotsDirectory() {
+    public String getScreenshotsDirectory() {
         return screenshotsDirectory;
     }
 
-    private String getKeyValuePairs() {
+    public String getKeyValuePairs() {
         return keyValuePairs;
     }
 
-    private String getWithAnnotation() {
+    public String getWithAnnotation() {
         return withAnnotation;
     }
 
-    private String getWithoutAnnotation() {
+    public String getWithoutAnnotation() {
         return withoutAnnotation;
     }
 
-    private String getTestCasesSelect() {
+    public String getTestCasesSelect() {
         return testCasesSelect;
     }
 
-    private String getTestCasesValue() {
+    public String getTestCasesValue() {
         return testCasesValue;
     }
 
-    private String getDataPath() {
+    public String getDataPath() {
         return dataPath;
     }
 
-    private String getLanguage() {
+    public String getLanguage() {
         if (language == null) {
             language = String.format("%s-%s", Locale.ENGLISH.getLanguage(), Locale.ENGLISH.getCountry());
         }
@@ -278,23 +294,23 @@ public class PipelineCloudStep extends AbstractStepImpl {
         return scheduler;
     }
 
-    private String getNotificationEmail() {
+    public String getNotificationEmail() {
         return notificationEmail;
     }
 
-    private String getNotificationEmailType() {
+    public String getNotificationEmailType() {
         return notificationEmailType;
     }
 
-    private boolean isFailBuildIfThisStepFailed() {
+    public boolean isFailBuildIfThisStepFailed() {
         return failBuildIfThisStepFailed;
     }
 
-    private String getTestTimeout() {
+    public String getTestTimeout() {
         return testTimeout;
     }
 
-    private String getCredentialsId() {
+    public String getCredentialsId() {
         return credentialsId;
     }
 
@@ -302,49 +318,143 @@ public class PipelineCloudStep extends AbstractStepImpl {
         return cloudUrl;
     }
 
-    private boolean isWaitForResults() {
+    public boolean isWaitForResults() {
         return waitForResults;
     }
 
-    private String getTestRunStateCheckMethod() {
+    public String getTestRunStateCheckMethod() {
         return testRunStateCheckMethod;
     }
 
-    private String getHookURL() {
+    public String getHookURL() {
         return hookURL;
     }
 
-    private String getWaitForResultsTimeout() {
+    public String getWaitForResultsTimeout() {
         return waitForResultsTimeout;
     }
 
-    private String getResultsPath() {
+    public String getResultsPath() {
         return resultsPath;
     }
 
-    private boolean isDownloadScreenshots() {
+    public boolean isDownloadScreenshots() {
         return downloadScreenshots;
     }
 
-    private boolean isForceFinishAfterBreak() {
+    public boolean isForceFinishAfterBreak() {
         return forceFinishAfterBreak;
     }
 
     @Extension
     public static final class DescriptorImpl extends AbstractStepDescriptorImpl {
+
+        private TestdroidApiUtil api;
+        
+        private TestdroidCloudSettings.DescriptorImpl cloudSettings;
+
         public DescriptorImpl() {
             super(CloudStepExecution.class);
-        }
+            load();
 
+            // cloud settings load the shared global settings when it's created
+            cloudSettings = new TestdroidCloudSettings.DescriptorImpl();
+            api = new TestdroidApiUtil(cloudSettings);
+        }
+        
         @Override
         public String getFunctionName() {
-            return "runInCloud";
+            return "runInBitbarCloud";
         }
 
         @Override
         public String getDisplayName() {
             return "Start a run in Bitbar Cloud";
         }
+
+        @Override
+        public boolean configure(StaplerRequest req, JSONObject formData) throws FormException {
+            save();
+            return super.configure(req, formData);
+        }
+
+        public boolean isAuthenticated() {
+            return api.isAuthenticated();
+        }
+
+        public ListBoxModel doFillProjectIdItems() {
+            ListBoxModel projects = new ListBoxModel();
+            try {
+                APIUser user = api.getUser();
+                List<APIProject> list = user.getProjectsResource(new APIQueryBuilder().limit(Integer.MAX_VALUE))
+                        .getEntity().getData();
+                for (APIProject project : list) {
+                    projects.add(project.getName(), project.getId().toString());
+                }
+            } catch (APIException e) {
+                LOGGER.log(Level.WARNING, Messages.ERROR_API());
+            }
+            return projects;
+        }
+
+        public ListBoxModel doFillSchedulerItems() {
+            ListBoxModel schedulers = new ListBoxModel();
+            schedulers.add(Messages.SCHEDULER_PARALLEL(), Scheduler.PARALLEL.toString());
+            schedulers.add(Messages.SCHEDULER_SERIAL(), Scheduler.SERIAL.toString());
+            schedulers.add(Messages.SCHEDULER_SINGLE(), Scheduler.SINGLE.toString());
+            return schedulers;
+        }
+
+        public ListBoxModel doFillDeviceGroupIdItems() {
+            ListBoxModel deviceGroups = new ListBoxModel();
+            try {
+                APIUser user = api.getUser();
+                List<APIDeviceGroup> list = user
+                        .getDeviceGroupsResource(new APIDeviceGroupQueryBuilder().withPublic().limit(Integer.MAX_VALUE))
+                        .getEntity().getData();
+                for (APIDeviceGroup deviceGroup : list) {
+                    deviceGroups.add(String.format("%s (%d device(s))", deviceGroup.getDisplayName(),
+                            deviceGroup.getDeviceCount()), deviceGroup.getId().toString());
+                }
+            } catch (APIException e) {
+                LOGGER.log(Level.WARNING, Messages.ERROR_API());
+            }
+
+            return deviceGroups;
+        }
+
+        public ListBoxModel doFillLanguageItems() {
+            ListBoxModel language = new ListBoxModel();
+            for (Locale locale : AndroidLocale.LOCALES) {
+                String langDisplay = String.format("%s (%s)", locale.getDisplayLanguage(), locale.getDisplayCountry());
+                String langCode = String.format("%s-%s", locale.getLanguage(), locale.getCountry());
+                language.add(langDisplay, langCode);
+            }
+            return language;
+        }
+
+        public ListBoxModel doFillNotificationEmailTypeItems() {
+            return cloudSettings.doFillNotificationEmailTypeItems();
+        }
+
+        public ListBoxModel doFillTestCasesSelectItems() {
+            ListBoxModel testCases = new ListBoxModel();
+            String value;
+            for (APITestRunConfig.LimitationType limitationType : APITestRunConfig.LimitationType.values()) {
+                value = limitationType.name();
+                testCases.add(value.toLowerCase(), value);
+            }
+            return testCases;
+        }
+
+        public ListBoxModel doFillTestRunStateCheckMethodItems() {
+            ListBoxModel items = new ListBoxModel();
+            for (TestRunStateCheckMethod method : TestRunStateCheckMethod.values()) {
+                items.add(method.name(), method.name());
+            }
+            return items;
+        }
+
     }
 
 
