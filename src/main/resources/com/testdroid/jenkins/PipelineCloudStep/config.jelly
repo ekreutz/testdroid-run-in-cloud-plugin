@@ -1,0 +1,87 @@
+<?jelly escape-by-default='true'?>
+<j:jelly 
+    xmlns:j="jelly:core" 
+    xmlns:f="/lib/form" 
+    xmlns:c="/lib/credentials">
+    <style type="text/css"></style>
+
+    <j:choose>
+        <f:entry field="projectId" title="${%Project}">
+            <f:select/>
+        </f:entry>
+        <f:entry field="testRunNameField" title="${%Test run name}">
+            <f:textbox name="testRunName" value=""/>
+        </f:entry>
+        <f:entry field="testTimeout" title="${%Test timeout}">
+            <f:textbox name="testTimeout" value="" placeholder="You can set a time-out period (value in seconds) for tests so that if they get stuck for some reason extensive amount of testing time is not lost."/>
+        </f:entry>
+        <f:entry field="application" title="${%Application}">
+            <f:textbox name="appPath" value="" placeholder="Application file path from workspace"/>
+        </f:entry>
+        <f:entry field="instrumentation" title="${%Test}">
+            <f:textbox name="testPath" value="" placeholder="Leave empty to use AppCrawler"/>
+        </f:entry>
+        <f:entry field="data" title="${%Data}">
+            <f:textbox name="dataPath" value="" placeholder="Use this field to upload additional data needed for test. The file must be in ZIP format."/>
+        </f:entry>
+        <f:entry field="scheduler" title="${%Scheduling}">
+            <f:select default="PARALLEL"/>
+        </f:entry>
+        <f:entry field="deviceGroupId" title="${%Device group}">
+            <f:select/>
+        </f:entry>
+        <f:entry field="language" title="${%Device language}">
+            <f:select default="en-US"/>
+        </f:entry>
+        <f:entry field="screenshotsDirectoryField" title="${%Screenshots configuration}">
+            <f:textbox name="screenshotsDirectory" value="" placeholder="You can define a custom directory. If empty, screenshots will be fetched from /sdcard/test-screenshots."/>
+        </f:entry>
+        <f:entry field="testRunnerField" title="${%Custom test runner}">
+            <f:textbox name="testRunner" value="" placeholder="If empty the primary Android test runner class android.test.InstrumentationTestRunner is used"/>
+        </f:entry>
+        <f:entry field="withAnnotationField" title="${%Tests with annotation}">
+            <f:textbox name="withAnnotation" value=""/>
+        </f:entry>
+        <f:entry field="withoutAnnotationField" title="${%Tests without annotation}">
+            <f:textbox name="withoutAnnotation" value=""/>
+        </f:entry>
+        <f:entry field="testCasesSelect" title="${%Use test cases from}">
+            <f:select/>
+        </f:entry>
+        <f:entry field="testCasesValue">
+            <f:textbox name="testCasesValue" value="" placeholder="Leave empty, if you want to run all test cases"/>
+        </f:entry>
+        <f:entry field="keyValuePairsField" title="${%Custom Key/Value pairs}">
+            <f:textbox name="keyValuePairs" value="" placeholder="For instance: key1:value1;key2:value2"/>
+        </f:entry>
+        <f:entry field="notificationEmailType" title="${%Send email when}">
+            <f:select/>
+        </f:entry>
+        <f:entry field="notificationEmailField" title="${%Email address(es)}">
+            <f:textbox name="notificationEmail" value=""/>
+        </f:entry>
+        <f:optionalBlock field="waitForResults" title="${%Wait for test finished in Testdroid Cloud and download results}" checked="${instance.waitForResultsBlock != null}">
+        <f:entry name="testRunStateCheckMethod" title="${%Check test run status method}" field="testRunStateCheckMethod">
+                <f:select/>
+        </f:entry>
+        <f:entry field="hookUrlField" title="${%Hook URL}">
+            <f:textbox name="hookURL" value=""/>
+        </f:entry>
+        <f:entry field="resultsPathField" title="${%Path for results}">
+            <f:textbox name="resultsPath" value=""/>
+        </f:entry>
+        <f:entry field="waitForResultsTimeoutField" title="${%Timeout for results}">
+            <f:textbox name="waitForResultsTimeout" value=""/>
+        </f:entry>
+        <f:entry field="forceFinishAfterWaitField" title="${%Finish test in Testdroid Cloud after 'Timeout for results'}">
+            <f:checkbox name="forceFinishAfterBreak" checked=""/>
+        </f:entry>
+        <f:entry field="downloadScreenshotsField" title="${%Include screenshots in result}">
+            <f:checkbox name="downloadScreenshots" checked=""/>
+        </f:entry>
+        </f:optionalBlock>
+    <f:entry field="failBuildIfThisStepFailed" title="${%Fail whole build if this step failed}">
+        <f:checkbox name="failBuildIfThisStepFailed" value=""/>
+    </f:entry>
+    </j:choose>
+</j:jelly>
