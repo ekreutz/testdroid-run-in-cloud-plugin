@@ -1,7 +1,8 @@
 <?jelly escape-by-default='true'?>
 <j:jelly 
     xmlns:j="jelly:core" 
-    xmlns:f="/lib/form" 
+    xmlns:f="/lib/form"
+    xmlns:st="jelly:stapler"
     xmlns:c="/lib/credentials">
     <style type="text/css"></style>
 
@@ -9,14 +10,17 @@
         <f:entry field="projectId" title="${%Project}">
             <f:select/>
         </f:entry>
+        <f:entry field="deviceGroupId" title="${%Device group}">
+            <f:select/>
+        </f:entry>
+        <f:entry field="application" title="${%Application}">
+            <f:textbox name="appPath" value="" placeholder="Application file path from workspace"/>
+        </f:entry>
         <f:entry field="testRunNameField" title="${%Test run name}">
             <f:textbox name="testRunName" value=""/>
         </f:entry>
         <f:entry field="testTimeout" title="${%Test timeout}">
-            <f:textbox name="testTimeout" value="" placeholder="You can set a time-out period (value in seconds) for tests so that if they get stuck for some reason extensive amount of testing time is not lost."/>
-        </f:entry>
-        <f:entry field="application" title="${%Application}">
-            <f:textbox name="appPath" value="" placeholder="Application file path from workspace"/>
+            <f:textbox name="testTimeout" value="" placeholder="You can set a time-out period (value in seconds) for tests."/>
         </f:entry>
         <f:entry field="instrumentation" title="${%Test}">
             <f:textbox name="testPath" value="" placeholder="Leave empty to use AppCrawler"/>
@@ -26,9 +30,6 @@
         </f:entry>
         <f:entry field="scheduler" title="${%Scheduling}">
             <f:select default="PARALLEL"/>
-        </f:entry>
-        <f:entry field="deviceGroupId" title="${%Device group}">
-            <f:select/>
         </f:entry>
         <f:entry field="language" title="${%Device language}">
             <f:select default="en-US"/>
@@ -60,7 +61,7 @@
         <f:entry field="notificationEmailField" title="${%Email address(es)}">
             <f:textbox name="notificationEmail" value=""/>
         </f:entry>
-        <f:optionalBlock field="waitForResults" title="${%Wait for test finished in Testdroid Cloud and download results}" checked="${instance.waitForResultsBlock != null}">
+    <f:optionalBlock inline="true" field="waitForResults" title="${%Wait for test finished in Testdroid Cloud and download results}" checked="${waitForResults}">
         <f:entry name="testRunStateCheckMethod" title="${%Check test run status method}" field="testRunStateCheckMethod">
                 <f:select/>
         </f:entry>
@@ -79,7 +80,7 @@
         <f:entry field="downloadScreenshotsField" title="${%Include screenshots in result}">
             <f:checkbox name="downloadScreenshots" checked=""/>
         </f:entry>
-        </f:optionalBlock>
+    </f:optionalBlock>
     <f:entry field="failBuildIfThisStepFailed" title="${%Fail whole build if this step failed}">
         <f:checkbox name="failBuildIfThisStepFailed" value=""/>
     </f:entry>

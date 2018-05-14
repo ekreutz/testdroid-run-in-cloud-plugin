@@ -18,13 +18,16 @@ import hudson.FilePath;
 import hudson.Launcher;
 import hudson.model.*;
 import java.util.List;
+import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
+import org.kohsuke.stapler.AncestorInPath;
 import org.jenkinsci.plugins.workflow.steps.AbstractStepDescriptorImpl;
 import org.jenkinsci.plugins.workflow.steps.AbstractStepImpl;
 import com.google.inject.Inject;
 import hudson.util.ListBoxModel;
-import org.kohsuke.stapler.StaplerRequest;
+import hudson.model.AbstractProject;
+import hudson.model.Project;
 import net.sf.json.JSONObject;
 
 import org.jenkinsci.plugins.workflow.steps.AbstractSynchronousNonBlockingStepExecution;
@@ -159,7 +162,7 @@ public class PipelineCloudStep extends AbstractStepImpl {
 
     @DataBoundSetter
     public void setScheduler(String scheduler) {
-        this.scheduler = scheduler.toLowerCase();
+        this.scheduler = scheduler;
     }
 
     @DataBoundSetter
